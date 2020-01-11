@@ -7,6 +7,7 @@ import torch.utils.data
 import math
 import matplotlib.pyplot as plt
 from SinGAN.imresize import imresize
+import time
 
 def train(opt,Gs,Zs,reals,NoiseAmp):
     real_ = functions.read_image(opt)
@@ -15,6 +16,13 @@ def train(opt,Gs,Zs,reals,NoiseAmp):
     real = imresize(real_,opt.scale1,opt)
     reals = functions.creat_reals_pyramid(real,reals,opt)
     nfc_prev = 0
+    
+    # ADD
+    store_time = [] 
+    print(opt.scale_factor)
+    print("Pyramid Depth: {}".format(len(reals)))
+    print([tuple(x.shape) for x in reals])
+    # ADD
 
     while scale_num<opt.stop_scale+1:
         opt.nfc = min(opt.nfc_init * pow(2, math.floor(scale_num / 4)), 128)
@@ -36,7 +44,13 @@ def train(opt,Gs,Zs,reals,NoiseAmp):
             G_curr.load_state_dict(torch.load('%s/%d/netG.pth' % (opt.out_,scale_num-1)))
             D_curr.load_state_dict(torch.load('%s/%d/netD.pth' % (opt.out_,scale_num-1)))
 
+        print("Starting Scale {} ...".format(scale_num)) # ADD
+        tic = time.time() # ADD
         z_curr,in_s,G_curr = train_single_scale(D_curr,G_curr,reals,Gs,Zs,in_s,NoiseAmp,opt)
+        toc = time.time() - tic # ADD
+        print("Finishing building scale {} in : {}".format(scale_num,toc)) # ADD
+        store_time.append(toc) # ADD
+
 
         G_curr = functions.reset_grads(G_curr,False)
         G_curr.eval()
@@ -55,6 +69,8 @@ def train(opt,Gs,Zs,reals,NoiseAmp):
         scale_num+=1
         nfc_prev = opt.nfc
         del D_curr,G_curr
+        
+    print("Total Time: {} in sec".format(store_time))
     return
 
 
